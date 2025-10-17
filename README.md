@@ -1,5 +1,5 @@
 # watchtower
-Watchtower的特点与优势
+Watchtower的特点与优势（此版本为中文通知）
 
 1 自动化更新：Watchtower可以定期（您可以配置更新检查的频率）检查您使用的Docker镜像，发现新版本后，自动停止、更新、重新启动容器，无需手动干预。这使得您可以专注于应用开发和其他重要任务，而不用担心容器更新的繁琐问题。
 
@@ -11,7 +11,7 @@ Watchtower的特点与优势
 
 5 通知与日志：Watchtower可以配置通知机制，让您及时了解容器更新的情况。同时，它还提供详细的日志记录，方便您查看更新过程的细节和可能出现的问题
 
-Tips-其它通知方式：（可在文件中的environment自行配置）
+Tips-其它通知方式：（可在文件中自行配置）
 
 environment:
 
@@ -38,5 +38,18 @@ environment:
       - WATCHTOWER_NOTIFICATION_EMAIL_SUBJECTTAG=[Watchtower]  # 邮件主题前缀，方便识别
       
       - WATCHTOWER_NOTIFICATIONS_LEVEL=info  # 通知等级：仅容器更新时发邮件（推荐）
+
+command:
+      - "0 0 1 * * *"  # 设置容器更新检测间隔，定时：每天凌晨1点
+      
+      - --cleanup  # 开启自动清理，容器更新后删除旧版本镜像，释放宿主机空间
+      
+      - --no-startup-message  # 禁用启动通知，避免Watchtower启动时发送无用邮件
+      
+      - --warn-on-head-failure=never  # 忽略镜像头部拉取失败警告，减少网络波动导致的误报
+      
+      - danmu-api  # 指定仅监控名为"danmu-api"的容器【删除这行或注释掉，即可监控所有容器】
+      
+      - --notification-report=false  # 禁用检测报告邮件，仅在容器更新/出错时发通知，避免冗余邮件
 
 源代码：https://github.com/containrrr/watchtower
