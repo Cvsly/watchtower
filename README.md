@@ -38,3 +38,5 @@ environment:
       - WATCHTOWER_NOTIFICATION_EMAIL_SUBJECTTAG=[Watchtower]  # 邮件主题前缀，方便识别
       
       - WATCHTOWER_NOTIFICATIONS_LEVEL=info  # 通知等级：仅容器更新时发邮件（推荐）
+
+源代码：https://github.com/containrrr/watchtower
