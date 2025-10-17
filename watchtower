@@ -6,7 +6,7 @@ services:
     container_name: watchtower
     environment:
       TZ: Asia/Shanghai
-      WATCHTOWER_NOTIFICATIONS: shoutrrr
+      WATCHTOWER_NOTIFICATIONS: "shoutrrr"
       WATCHTOWER_NOTIFICATION_URL: "telegram://token@telegram/?chats=id"
       WATCHTOWER_NOTIFICATION_TEMPLATE: |-
         🐳 *Watchtower 容器监控服务*
