@@ -22,8 +22,6 @@ Tips - 通知方式：（自行选择）
 环境变量设置（根据需求配置）
 
 environment:
-
-      - TZ=Asia/Shanghai
       
       # --- 邮件通知配置 ---
 
