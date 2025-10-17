@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    environment:
+      TZ: Asia/Shanghai
+      WATCHTOWER_NOTIFICATIONS: shoutrrr
+      WATCHTOWER_NOTIFICATION_URL: "telegram://token@telegram/?chats=id"
+      WATCHTOWER_NOTIFICATION_TEMPLATE: |-
+        🐳 *Watchtower 容器监控服务*
+        
+        🚀 服务状态：已启动
+        📦 版本：1.7.1
+        🔔 通知方式：Telegram
+        🔍 检查范围：所有容器（除明确禁用标签的）
+        
+        ⏰ 定时任务设置：
+          首次运行：2025-10-18 01:00:00 (北京时间)
+          下次检查：11小时35分钟后
+        
+        📋 功能特性：
+          ✅ 自动检查容器更新
+          ✅ 自动清理旧镜像
+          ✅ 包含重启中的容器
+          ✅ Telegram 通知
+        
+        🧭 Watchtower 正在监控您的容器...
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - --schedule
+      - "0 0 1 * * *"
+      - --cleanup
+      - --include-restarting
+    restart: unless-stopped
