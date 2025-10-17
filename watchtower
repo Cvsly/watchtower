@@ -33,5 +33,6 @@ services:
       - --schedule
       - "0 0 1 * * *"
       - --cleanup
+      - --warn-on-head-failure=never
       - --include-restarting
     restart: unless-stopped
