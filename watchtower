@@ -27,11 +27,11 @@ services:
         {{- end }}
         {{- end }}
         {{- if .Fresh }}
-        🆕 **新部署容器：**
+        🆕 **运行中容器：**
         {{- range .Fresh }}
         - 容器名称：{{.Name}}
           镜像：{{.ImageName}}
-          状态：{{.State}}
+          状态：🟢 已启动
         {{- end }}
         {{- end }}
         {{- if .Skipped }}
@@ -39,7 +39,7 @@ services:
         {{- range .Skipped }}
         - 容器名称：{{.Name}}
           镜像：{{.ImageName}}
-          状态：{{.State}}
+          状态：{{if eq .State "running"}}🟢 已启动{{else}}🛑 已停止{{end}}
           原因：{{.Error}}
         {{- end }}
         {{- end }}
@@ -48,7 +48,7 @@ services:
         {{- range .Failed }}
         - 容器名称：{{.Name}}
           镜像：{{.ImageName}}
-          状态：{{.State}}
+          状态：{{if eq .State "running"}}🟢 已启动{{else}}🛑 已停止{{end}}
           错误信息：{{.Error}}
         {{- end }}
         {{- end }}
