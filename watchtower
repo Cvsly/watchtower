@@ -17,10 +17,39 @@ services:
         ✔️ 成功更新：{{len .Updated}}
         ⚠️ 跳过更新：{{len .Skipped}}
         ❌ 更新失败：{{len .Failed}}
+        {{- if .Updated }}
+        ✳️ **已更新容器：**
+        {{- range .Updated }}
+        - 容器名称：{{.Name}}
+          镜像：{{.ImageName}}
+          旧版本 ID：{{.CurrentImageID.ShortID}}
+          新版本 ID：{{.LatestImageID.ShortID}}
+        {{- end }}
+        {{- end }}
         {{- if .Fresh }}
-        🆕 **运行中容器：**
+        🆕 **新部署容器：**
         {{- range .Fresh }}
-        - {{.Name}} ({{.ImageName}})
+        - 容器名称：{{.Name}}
+          镜像：{{.ImageName}}
+          状态：{{.State}}
+        {{- end }}
+        {{- end }}
+        {{- if .Skipped }}
+        ⚠️ **跳过更新的容器：**
+        {{- range .Skipped }}
+        - 容器名称：{{.Name}}
+          镜像：{{.ImageName}}
+          状态：{{.State}}
+          原因：{{.Error}}
+        {{- end }}
+        {{- end }}
+        {{- if .Failed }}
+        🛑 **更新失败的容器：**
+        {{- range .Failed }}
+        - 容器名称：{{.Name}}
+          镜像：{{.ImageName}}
+          状态：{{.State}}
+          错误信息：{{.Error}}
         {{- end }}
         {{- end }}
         {{- end -}}
