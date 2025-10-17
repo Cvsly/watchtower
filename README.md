@@ -48,6 +48,7 @@ environment:
       - WATCHTOWER_NOTIFICATIONS_LEVEL=info  # 通知等级：仅容器更新时发邮件（推荐）
 
 command:
+
       - "0 0 1 * * *"  # 设置容器更新检测间隔，定时：每天凌晨1点
       
       - --cleanup  # 开启自动清理，容器更新后删除旧版本镜像，释放宿主机空间
