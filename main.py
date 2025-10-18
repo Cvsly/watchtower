@@ -192,23 +192,31 @@ async def runonce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 等待容器完成
         timeout = 120
         start = time.time()
-        while True:
-            container.reload()
-            if container.status in ("exited", "dead"):
-                break
-            if time.time() - start > timeout:
-                container.stop(timeout=3)
-                break
-            time.sleep(1)
+        
+        try:
+            # 等待容器完成，不捕获日志
+            while True:
+                container.reload()
+                if container.status in ("exited", "dead"):
+                    break
+                if time.time() - start > timeout:
+                    container.stop(timeout=3)
+                    break
+                time.sleep(1)
+        except docker.errors.NotFound:
+            # 容器已被自动移除，这是正常情况
+            pass
 
-        logs = container.logs().decode(errors="ignore")[-3000:]
-        if logs.strip():
-            await update.message.reply_text(f"✅ 一次性更新完成，以下为运行日志：\n```\n{logs}\n```", parse_mode="MarkdownV2")
-        else:
-            await update.message.reply_text("✅ 一次性更新完成，未产生输出。通知已发送 Telegram。")
+        # 不发送运行日志，只发送完成消息
+        await update.message.reply_text("✅ 一次性更新完成。")
 
     except Exception as e:
-        await update.message.reply_text(f"❌ 执行一次性更新失败：{e}")
+        # 过滤掉容器不存在的错误，不发送通知
+        error_str = str(e)
+        if "No such container" in error_str or "404 Client Error" in error_str:
+            await update.message.reply_text("✅ 一次性更新完成。")
+        else:
+            await update.message.reply_text(f"❌ 执行一次性更新失败：{e}")
 
 # ================= 主程序启动 =================
 app = ApplicationBuilder().token(BOT_TOKEN).build()
