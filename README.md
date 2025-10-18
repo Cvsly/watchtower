@@ -18,6 +18,7 @@ Tips - 通知方式：（自行选择）
    1 WATCHTOWER_NOTIFICATION_URL: "telegram://token@telegram/?chats=id"
 
    2 在token和id处替换成自己的telegram参数即可
+   3 新增bot命令控制，举个例子：/help 
 
 环境变量设置（根据需求配置）
 
