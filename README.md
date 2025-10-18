@@ -11,9 +11,7 @@ Watchtower的特点与优势（此版本为中文通知）
 
 五.   通知与日志：Watchtower可以配置通知机制，让您及时了解容器更新的情况。同时，它还提供详细的日志记录，方便您查看更新过程的细节和可能出现的问题
 
-Tips - 通知方式
-
-   注意事项
+Tips - 注意事项
 
     1  WATCHTOWER_NOTIFICATION_URL: "telegram://token@telegram/?chats=id"
 
