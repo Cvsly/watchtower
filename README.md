@@ -23,6 +23,11 @@ Tips - 注意事项
 
     5  目前仅在telegram运行通知提醒，其它暂未测试，有问题请使用原版
 
+    6  部署完建议命令重启容器空间
+       cd /opt/1panel/apps/watchtower/watchtower
+       docker-compose up -d
+       docker compose up -d --build
+
 环境变量设置
 
 environment:
