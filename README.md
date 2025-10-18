@@ -15,7 +15,7 @@ Tips - 注意事项
 
     1  telegram://<你的BotToken>@telegram/?chats=<你的ChatID>
 
-    2  在token和id处替换成自己的即可
+    2  docker-compose.yml文件中的token和id处替换成自己的即可
    
     3  bot命令控制，举个栗子：/help
    
