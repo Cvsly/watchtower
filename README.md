@@ -13,9 +13,9 @@ Watchtower的特点与优势（此版本为中文通知）
 
 Tips - 注意事项
 
-    1  WATCHTOWER_NOTIFICATION_URL: "telegram://token@telegram/?chats=id"
+    1  telegram://<你的BotToken>@telegram/?chats=<你的ChatID>
 
-    2  在token和id处替换成自己的telegram参数即可
+    2  在token和id处替换成自己的即可
    
     3  bot命令控制，举个栗子：/help
    
