@@ -1,5 +1,4 @@
 version: '3.8'
-
 services:
   watchtower:
     image: containrrr/watchtower
@@ -8,7 +7,7 @@ services:
       TZ: "Asia/Shanghai"
       WATCHTOWER_NOTIFICATIONS: "shoutrrr"
       WATCHTOWER_NOTIFICATION_REPORT: "true"
-      WATCHTOWER_NOTIFICATION_URL: "telegram://8242252456:AAHF_zQ3FdYLd293hy5objohdLJOP3J-ZQY@telegram/?chats=932742342"
+      WATCHTOWER_NOTIFICATION_URL: "telegram://token@telegram/?chats=id"
       WATCHTOWER_NOTIFICATIONS_LEVEL: "info"
       WATCHTOWER_NOTIFICATION_TEMPLATE: |-
         {{- with .Report -}}
@@ -62,15 +61,17 @@ services:
       - --cleanup
       - --warn-on-head-failure=never
       - --include-restarting
-      - --notification-report
-    restart: unless-stopped
+      - --notification-report  # 修复参数名称
+    restart: unless-stopped  # 这会导致容器自动重启
 
   watchtower-bot:
-    build: .
+    build:
+      context: ./bot
+      dockerfile: Dockerfile
     container_name: watchtower-bot
     environment:
-      - TELEGRAM_BOT_TOKEN=8242252456:AAHF_zQ3FdYLd293hy5objohdLJOP3J-ZQY
-      - ALLOWED_CHAT_ID=932742342
+      - TELEGRAM_BOT_TOKEN=
+      - ALLOWED_CHAT_ID=
       - DOCKER_SOCKET_PATH=/var/run/docker.sock
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
