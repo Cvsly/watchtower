@@ -41,10 +41,22 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not containers:
         await update.message.reply_text("🟡 当前没有运行中的容器。")
         return
-    msg = "📋 **运行中容器状态：**\n"
+    
+    # 按照 /allcontainers 的格式输出
+    running = []
     for c in containers:
         img = c.image.tags[0] if c.image.tags else c.image.short_id
-        msg += f"🟢 {c.name} - {img}\n"
+        line = f"- 容器名称：{c.name}\n  镜像：{img}\n  状态：🟢 已启动"
+        running.append(line)
+
+    msg = "📊 **容器状态报告**\n---\n"
+    msg += f"🔍 总容器数：{len(containers)}\n"
+    msg += f"🟢 运行中：{len(running)}\n"
+    msg += f"🛑 已停止：0\n\n"
+
+    if running:
+        msg += "✅ **运行中容器：**\n" + "\n".join(running)
+
     await update.message.reply_text(msg)
 
 # ================= /allcontainers =================
