@@ -22,7 +22,7 @@ def get_command_keyboard():
         [KeyboardButton("/runonce"), KeyboardButton("/logs")],
         [KeyboardButton("/help")]
     ]
-    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=False)
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=True)
 
 # ================= 权限检查 =================
 async def check_permission(update: Update):
@@ -65,7 +65,7 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_permission(update): return
     containers = client.containers.list()
     if not containers:
-        await update.message.reply_text("🟡 当前没有运行中的容器。", reply_markup=get_command_keyboard())
+        await update.message.reply_text("🟡 当前没有运行中的容器。")
         return
     
     # 按照 /allcontainers 的格式输出
@@ -83,14 +83,14 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if running:
         msg += "✅ **运行中容器：**\n" + "\n".join(running)
 
-    await update.message.reply_text(msg, reply_markup=get_command_keyboard())
+    await update.message.reply_text(msg)
 
 # ================= /allcontainers =================
 async def allcontainers_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_permission(update): return
     containers = client.containers.list(all=True)
     if not containers:
-        await update.message.reply_text("🟡 未发现任何容器。", reply_markup=get_command_keyboard())
+        await update.message.reply_text("🟡 未发现任何容器。")
         return
 
     running = []
@@ -113,7 +113,7 @@ async def allcontainers_command(update: Update, context: ContextTypes.DEFAULT_TY
     if stopped:
         msg += "⚠️ **已停止容器：**\n" + "\n".join(stopped)
 
-    await update.message.reply_text(msg, reply_markup=get_command_keyboard())
+    await update.message.reply_text(msg)
 
 # ================= /restart =================
 async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -125,9 +125,9 @@ async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         c = client.containers.get(name)
         c.restart()
-        await update.message.reply_text(f"♻️ 已重启容器：{name}", reply_markup=get_command_keyboard())
+        await update.message.reply_text(f"♻️ 已重启容器：{name}")
     except Exception as e:
-        await update.message.reply_text(f"❌ 重启失败：{e}", reply_markup=get_command_keyboard())
+        await update.message.reply_text(f"❌ 重启失败：{e}")
 
 # ================= /logs =================
 async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -154,15 +154,15 @@ async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     .replace("No new images found", "未发现新镜像"))
             formatted.append(f"🕒 {ts_fmt} | {line}")
         msg = "\n".join(formatted[-20:])
-        await update.message.reply_text(f"🧾 **Watchtower 最新日志：**\n\n{msg}", reply_markup=get_command_keyboard())
+        await update.message.reply_text(f"🧾 **Watchtower 最新日志：**\n\n{msg}")
     except Exception as e:
-        await update.message.reply_text(f"⚠️ 获取日志失败：{e}", reply_markup=get_command_keyboard())
+        await update.message.reply_text(f"⚠️ 获取日志失败：{e}")
 
 # ================= /runonce =================
 async def runonce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """执行一次性更新检查（--run-once）"""
     if not await check_permission(update): return
-    await update.message.reply_text("🔄 正在执行一次性更新检查，请稍候…", reply_markup=get_command_keyboard())
+    await update.message.reply_text("🔄 正在执行一次性更新检查，请稍候…")
 
     image_name = "containrrr/watchtower:latest"
     tmp_name = "watchtower-runonce-temp"
@@ -234,15 +234,15 @@ async def runonce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
         # 不发送运行日志，只发送完成消息
-        await update.message.reply_text("✅ 一次性更新完成。", reply_markup=get_command_keyboard())
+        await update.message.reply_text("✅ 一次性更新完成。")
 
     except Exception as e:
         # 过滤掉容器不存在的错误，不发送通知
         error_str = str(e)
         if "No such container" in error_str or "404 Client Error" in error_str:
-            await update.message.reply_text("✅ 一次性更新完成。", reply_markup=get_command_keyboard())
+            await update.message.reply_text("✅ 一次性更新完成。")
         else:
-            await update.message.reply_text(f"❌ 执行一次性更新失败：{e}", reply_markup=get_command_keyboard())
+            await update.message.reply_text(f"❌ 执行一次性更新失败：{e}")
 
 # ================= 主程序启动 =================
 app = ApplicationBuilder().token(BOT_TOKEN).build()
