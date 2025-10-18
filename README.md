@@ -11,17 +11,21 @@ Watchtower的特点与优势（此版本为中文通知）
 
 五.  通知与日志：Watchtower可以配置通知机制，让您及时了解容器更新的情况。同时，它还提供详细的日志记录，方便您查看更新过程的细节和可能出现的问题
 
-Tips - 通知方式：（自行选择）
+Tips - 通知方式
 
-   telegram通知
+   注意事项
 
    1 WATCHTOWER_NOTIFICATION_URL: "telegram://token@telegram/?chats=id"
 
    2 在token和id处替换成自己的telegram参数即可
    
-   3 新增bot命令控制，举个例子：/help 
+   3 bot命令控制，举个栗子：/help
+   
+   4 三个文件与docker-compose.yml文件放在同一主目录即可完成部署
 
-环境变量设置（根据需求配置）
+   5 目前仅在telegram运行通知提醒，其它暂未测试，有问题请使用原版
+
+环境变量设置
 
 environment:
       
