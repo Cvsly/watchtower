@@ -13,7 +13,7 @@ Watchtower的特点与优势（此版本为中文通知）
 
 Tips - 注意事项
 
-    1  telegram://<你的BotToken>@telegram/?chats=<你的ChatID>
+    1  env环境变量文件修改：telegram://<你的BotToken>@telegram/?chats=<你的ChatID>
 
     2  docker-compose.yml文件中的token和id处替换成自己的
    
