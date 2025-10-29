@@ -1,6 +1,9 @@
 version: '3.8'
 
 services:
+  # ==============================
+  # 🐳 Watchtower 自动更新服务
+  # ==============================
   watchtower:
     image: containrrr/watchtower
     container_name: watchtower
@@ -8,7 +11,7 @@ services:
       TZ: "Asia/Shanghai"
       WATCHTOWER_NOTIFICATIONS: "shoutrrr"
       WATCHTOWER_NOTIFICATION_REPORT: "true"
-      WATCHTOWER_NOTIFICATION_URL: "telegram://<你的BotToken>@telegram/?chats=<你的ChatID>"
+      WATCHTOWER_NOTIFICATION_URL: "telegram://8242252456:AAHF_zQ3FdYLd293hy5objohdLJOP3J-ZQY@telegram/?chats=932742342"
       WATCHTOWER_NOTIFICATIONS_LEVEL: "info"
       WATCHTOWER_NOTIFICATION_TEMPLATE: |-
         {{- with .Report -}}
@@ -25,14 +28,6 @@ services:
           镜像：{{.ImageName}}
           旧版本 ID：{{.CurrentImageID.ShortID}}
           新版本 ID：{{.LatestImageID.ShortID}}
-        {{- end }}
-        {{- end }}
-        {{- if .Fresh }}
-        🆕 **运行中容器：**
-        {{- range .Fresh }}
-        - 容器名称：{{.Name}}
-          镜像：{{.ImageName}}
-          状态：🟢 已启动
         {{- end }}
         {{- end }}
         {{- if .Skipped }}
@@ -53,6 +48,14 @@ services:
           错误信息：{{.Error}}
         {{- end }}
         {{- end }}
+
+        🧹 **系统清理报告**
+        ---
+        #🗑️ 删除停止容器：{{or .Cleanup.RemovedContainers 0}} 个
+        🧱 删除无标签镜像：{{or .Cleanup.RemovedImages 0}} 个
+        💾 删除未使用卷：{{or .Cleanup.RemovedVolumes 0}} 个
+        🌐 删除未使用网络：{{or .Cleanup.RemovedNetworks 0}} 个
+        ✅ 状态：{{if .Cleanup.HasCleanup}}已清理{{else}}系统状态良好{{end}}
         {{- end -}}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -65,13 +68,18 @@ services:
       - --notification-report
     restart: unless-stopped
 
+  # ==============================
+  # 🤖 Watchtower 控制机器人
+  # ==============================
   watchtower-bot:
     build: .
     container_name: watchtower-bot
     environment:
-      - TELEGRAM_BOT_TOKEN=<你的BotToken>
-      - ALLOWED_CHAT_ID=<你的ChatID>
+      - TELEGRAM_BOT_TOKEN=8242252456:AAHF_zQ3FdYLd293hy5objohdLJOP3J-ZQY
+      - ALLOWED_CHAT_ID=932742342
       - DOCKER_SOCKET_PATH=/var/run/docker.sock
+      - ENABLE_AUTO_CLEAN=true
+      - AUTO_CLEAN_CRON=0 0 1 * * *     # 每天凌晨2点清理
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
