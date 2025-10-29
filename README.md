@@ -27,6 +27,7 @@ Tips - 注意事项
        cd /opt/1panel/apps/watchtower/watchtower（进入容器所在目录）
        docker compose down
        docker compose up -d --build
+       或者 docker exec watchtower /watchtower --run-once 测试发送通知
 环境变量设置
 
 environment:
