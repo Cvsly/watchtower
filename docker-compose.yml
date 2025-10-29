@@ -8,7 +8,7 @@ services:
       TZ: "Asia/Shanghai"
       WATCHTOWER_NOTIFICATIONS: "shoutrrr"
       WATCHTOWER_NOTIFICATION_REPORT: "true"
-      WATCHTOWER_NOTIFICATION_URL: "telegram://${BOT_TOKEN}@telegram/?chats=${ALLOWED_CHAT_ID}"
+      WATCHTOWER_NOTIFICATION_URL: "telegram://<你的BotToken>@telegram/?chats=<你的ChatID>"
       WATCHTOWER_NOTIFICATIONS_LEVEL: "info"
       WATCHTOWER_NOTIFICATION_TEMPLATE: |-
         {{- with .Report -}}
@@ -69,8 +69,8 @@ services:
     build: .
     container_name: watchtower-bot
     environment:
-      - TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
-      - ALLOWED_CHAT_ID=${ALLOWED_CHAT_ID}
+      - TELEGRAM_BOT_TOKEN=<你的BotToken>
+      - ALLOWED_CHAT_ID=<你的ChatID>
       - DOCKER_SOCKET_PATH=/var/run/docker.sock
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
