@@ -9,7 +9,7 @@ services:
       TZ: "Asia/Shanghai"
       WATCHTOWER_NOTIFICATIONS: "shoutrrr"
       WATCHTOWER_NOTIFICATION_REPORT: "true"
-      WATCHTOWER_NOTIFICATIONS_LEVEL: "info"
+      WATCHTOWER_NOTIFICATIONS_LEVEL: ${WATCHTOWER_NOTIFICATION_LEVEL:-info}
       WATCHTOWER_NOTIFICATION_URL: "telegram://${BOT_TOKEN}@telegram/?chats=${ALLOWED_CHAT_ID}"
       WATCHTOWER_NOTIFICATION_TEMPLATE: |-
         {{- with .Report -}}
@@ -59,11 +59,11 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     command:
       - --schedule
-      - "0 1 * * *"
+      - ${WATCHTOWER_SCHEDULE}  # 使用环境变量中的定时设置
       - --cleanup
       - --include-restarting
       - --notification-report
-      - --notifications-level=info
+      - --notifications-level=${WATCHTOWER_NOTIFICATION_LEVEL:-info}
     restart: unless-stopped
 
   # ==============================
@@ -76,7 +76,8 @@ services:
       - TELEGRAM_BOT_TOKEN=${BOT_TOKEN}
       - ALLOWED_CHAT_ID=${ALLOWED_CHAT_ID}
       - DOCKER_SOCKET_PATH=/var/run/docker.sock
-      - ENABLE_AUTO_CLEAN=true
+      - WATCHTOWER_SCHEDULE=${WATCHTOWER_SCHEDULE}  # 传递定时设置给 Bot
+      - WATCHTOWER_NOTIFICATION_LEVEL=${WATCHTOWER_NOTIFICATION_LEVEL:-info}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
