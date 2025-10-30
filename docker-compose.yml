@@ -59,7 +59,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     command:
       - --schedule
-      - "49 2 * * *"
+      - "0 1 * * *"
       - --cleanup
       - --include-restarting
       - --notification-report
