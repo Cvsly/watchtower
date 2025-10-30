@@ -61,7 +61,6 @@ def generate_container_status_report(client):
         containers = client.containers.list(all=True)
         if not containers:
             return "🟡 未发现任何容器。"
-
         running, stopped = [], []
         for c in containers:
             img = c.image.tags[0] if c.image.tags else c.image.short_id
@@ -70,13 +69,14 @@ def generate_container_status_report(client):
                 running.append(line)
             else:
                 stopped.append(line)
-
         msg = "📊 容器状态报告\n---\n"
         msg += f"🔍 总容器数：{len(containers)}\n"
         msg += f"🟢 运行中：{len(running)}\n"
         msg += f"🛑 已停止：{len(stopped)}\n\n"
-        if running: msg += "✅ 运行中容器：\n" + "\n".join(running) + "\n\n"
-        if stopped: msg += "⚠️ 已停止容器：\n" + "\n".join(stopped)
+        if running:
+            msg += "✅ 运行中容器：\n" + "\n".join(running) + "\n\n"
+        if stopped:
+            msg += "⚠️ 已停止容器：\n" + "\n".join(stopped)
         return msg
     except Exception as e:
         return f"❌ 生成报告失败：{e}"
@@ -88,7 +88,6 @@ def send_startup_notification():
         if not BOT_TOKEN or not ALLOWED_CHAT_ID:
             print("❌ 环境变量未设置")
             return
-        print("✅ 环境变量已就绪")
         client = wait_for_docker_ready()
         print("🕒 等待容器完全启动...")
         for i in range(1, 6):
@@ -112,7 +111,7 @@ def send_startup_notification():
     except Exception as e:
         print(f"💥 发送启动通知失败：{e}")
 
-# ================= 命令按钮 =================
+# ================= 按钮菜单 =================
 def get_command_keyboard():
     keyboard = [
         [KeyboardButton("/status"), KeyboardButton("/allcontainers")],
@@ -146,8 +145,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= /start =================
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_permission(update): return
-    msg = (
+    welcome_msg = (
         "🚀 欢迎使用 Watchtower 控制机器人\n\n"
+        "使用下方按钮或输入命令来管理您的容器：\n\n"
         "📊 /status - 查看运行中容器\n"
         "📋 /allcontainers - 查看所有容器状态\n"
         "🔄 /runonce - 立即执行更新检查\n"
@@ -156,7 +156,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🧹 /cleanup - 执行镜像清理\n"
         "❓ /help - 查看帮助信息"
     )
-    await update.message.reply_text(msg, reply_markup=get_command_keyboard())
+    await update.message.reply_text(welcome_msg, reply_markup=get_command_keyboard())
 
 # ================= /status =================
 async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -170,129 +170,17 @@ async def status_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         running = []
         for c in containers:
             img = c.image.tags[0] if c.image.tags else c.image.short_id
-            running.append(f"- 容器名称：{c.name}\n  镜像：{img}\n  状态：🟢 已启动")
+            line = f"- 容器名称：{c.name}\n  镜像：{img}\n  状态：🟢 已启动"
+            running.append(line)
         msg = "📊 容器状态报告\n---\n"
-        msg += f"🔍 总容器数：{len(containers)}\n🟢 运行中：{len(running)}\n🛑 已停止：0\n\n"
-        msg += "✅ 运行中容器：\n" + "\n".join(running)
+        msg += f"🔍 总容器数：{len(containers)}\n"
+        msg += f"🟢 运行中：{len(running)}\n"
+        msg += f"🛑 已停止：0\n\n"
+        if running:
+            msg += "✅ 运行中容器：\n" + "\n".join(running)
         await update.message.reply_text(msg)
     except Exception as e:
         await update.message.reply_text(f"❌ 获取状态失败：{e}")
-
-# ================= /allcontainers =================
-async def allcontainers_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_permission(update): return
-    try:
-        client = docker.DockerClient(base_url=f"unix://{DOCKER_SOCKET_PATH}")
-        containers = client.containers.list(all=True)
-        if not containers:
-            await update.message.reply_text("🟡 未发现任何容器。")
-            return
-        running, stopped = [], []
-        for c in containers:
-            img = c.image.tags[0] if c.image.tags else c.image.short_id
-            line = f"- 容器名称：{c.name}\n  镜像：{img}\n  状态：{'🟢 已启动' if c.status == 'running' else '🛑 已停止'}"
-            if c.status == "running": running.append(line)
-            else: stopped.append(line)
-        msg = "📊 容器状态报告\n---\n"
-        msg += f"🔍 总容器数：{len(containers)}\n🟢 运行中：{len(running)}\n🛑 已停止：{len(stopped)}\n\n"
-        if running: msg += "✅ 运行中容器：\n" + "\n".join(running) + "\n\n"
-        if stopped: msg += "⚠️ 已停止容器：\n" + "\n".join(stopped)
-        await update.message.reply_text(msg)
-    except Exception as e:
-        await update.message.reply_text(f"❌ 获取容器列表失败：{e}")
-
-# ================= /restart =================
-async def restart_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_permission(update): return
-    if not context.args:
-        await update.message.reply_text("用法：/restart <容器名>", reply_markup=get_command_keyboard())
-        return
-    name = context.args[0]
-    try:
-        client = docker.DockerClient(base_url=f"unix://{DOCKER_SOCKET_PATH}")
-        await update.message.reply_text(f"🔄 正在重启容器：{name}...")
-        c = client.containers.get(name)
-        c.restart()
-        time.sleep(2)
-        c.reload()
-        if c.status == "running":
-            await update.message.reply_text(f"✅ 容器重启成功：{name}")
-            restart_msg = f"🔄 容器重启通知\n\n📦 容器名称：{name}\n⏰ 重启时间：{get_china_time()}\n✅ 状态：重启完成"
-            threading.Thread(target=lambda: send_telegram_message(restart_msg, use_markdown=False), daemon=True).start()
-        else:
-            await update.message.reply_text(f"⚠️ 容器重启后状态异常：{c.status}")
-    except Exception as e:
-        await update.message.reply_text(f"❌ 重启失败：{e}")
-
-# ================= /logs =================
-async def logs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_permission(update): return
-    try:
-        client = docker.DockerClient(base_url=f"unix://{DOCKER_SOCKET_PATH}")
-        wt = client.containers.get("watchtower")
-        raw_logs = wt.logs(tail=30).decode(errors="ignore")
-        lines = raw_logs.strip().split("\n")
-        formatted = []
-        for line in lines:
-            ts_match = re.search(r'(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})', line)
-            ts_fmt = ""
-            if ts_match:
-                try:
-                    dt = datetime.fromisoformat(ts_match.group(1))
-                    ts_fmt = dt.astimezone(china_tz).strftime("%m-%d %H:%M")
-                except:
-                    ts_fmt = ts_match.group(1)
-            line = line.replace("Found new image", "发现新镜像")\
-                       .replace("Stopping container", "停止容器")\
-                       .replace("Removing image", "删除旧镜像")\
-                       .replace("Starting container", "启动容器")\
-                       .replace("No new images found", "未发现新镜像")\
-                       .replace("Removing unused images", "清理未使用镜像")
-            formatted.append(f"🕒 {ts_fmt} | {line}")
-        msg = "\n".join(formatted[-20:])
-        await update.message.reply_text(f"🧾 Watchtower 最新日志：\n\n{msg}")
-    except Exception as e:
-        await update.message.reply_text(f"⚠️ 获取日志失败：{e}")
-
-# ================= /runonce =================
-async def runonce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await check_permission(update): return
-    await update.message.reply_text("🔄 正在执行一次性更新检查，请稍候…")
-    image_name = "containrrr/watchtower:latest"
-    tmp_name = "watchtower-runonce-temp"
-    try:
-        client = docker.DockerClient(base_url=f"unix://{DOCKER_SOCKET_PATH}")
-        try:
-            old = client.containers.get(tmp_name)
-            old.remove(force=True)
-        except docker.errors.NotFound:
-            pass
-        container = client.containers.run(
-            image_name,
-            command=["--run-once", "--cleanup"],
-            entrypoint="/watchtower",
-            volumes={"/var/run/docker.sock": {"bind": "/var/run/docker.sock", "mode": "rw"}},
-            environment={
-                "TZ": "Asia/Shanghai",
-                "WATCHTOWER_NOTIFICATIONS": "shoutrrr",
-                "WATCHTOWER_NOTIFICATION_REPORT": "true",
-                "WATCHTOWER_NOTIFICATION_URL": f"telegram://{BOT_TOKEN}@telegram/?chats={ALLOWED_CHAT_ID}"
-            },
-            remove=True,
-            detach=True,
-            name=tmp_name
-        )
-        start = time.time()
-        while True:
-            container.reload()
-            if container.status in ("exited", "dead"): break
-            if time.time() - start > 120:
-                container.stop(timeout=3)
-                break
-            time.sleep(1)
-        await update.message.reply_text("✅ 一次性更新完成。")
-    except Exception as e:
-        await update.message.reply_text(f"❌ 执行一次性更新失败：{e}")
 
 # ================= /cleanup =================
 async def cleanup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -300,29 +188,48 @@ async def cleanup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🧹 正在执行镜像清理，请稍候…")
     try:
         client = docker.DockerClient(base_url=f"unix://{DOCKER_SOCKET_PATH}")
-        result = client.images.prune(filters={"dangling": False})
-        removed = result.get('ImagesDeleted', [])
-        space = result.get('SpaceReclaimed', 0)
-        report = "🧹 镜像清理报告\n---\n"
-        report += f"🗑️ 删除无用镜像：{len(removed)} 个\n💾 释放空间：{space / 1024 / 1024:.2f} MB\n"
-        await update.message.reply_text(report)
+        result = client.images.prune()
+
+        images_deleted = result.get("ImagesDeleted")
+        space_reclaimed = result.get("SpaceReclaimed", 0)
+
+        if not images_deleted:
+            msg = (
+                "🧹 **镜像清理报告**\n"
+                "---\n"
+                "🗑️ 删除无用镜像：0 个\n"
+                f"💾 释放空间：{round(space_reclaimed / (1024**2), 2)} MB"
+            )
+        else:
+            msg = (
+                "🧹 **镜像清理报告**\n"
+                "---\n"
+                f"🗑️ 删除无用镜像：{len(images_deleted)} 个\n"
+                f"💾 释放空间：{round(space_reclaimed / (1024**2), 2)} MB"
+            )
+
+        await update.message.reply_text(msg, parse_mode="Markdown")
+        send_telegram_message(msg, use_markdown=True)
+
     except Exception as e:
         await update.message.reply_text(f"❌ 镜像清理失败：{e}")
 
-# ================= 主程序启动 =================
+# ================= 主函数 =================
 def main():
     print("🔄 正在启动 Watchtower 控制 Bot...")
-    threading.Thread(target=lambda: (time.sleep(10), send_startup_notification()), daemon=True).start()
+    def delayed_startup():
+        time.sleep(10)
+        send_startup_notification()
+    threading.Thread(target=delayed_startup, daemon=True).start()
+
     app = ApplicationBuilder().token(BOT_TOKEN).build()
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CommandHandler("status", status_command))
-    app.add_handler(CommandHandler("allcontainers", allcontainers_command))
-    app.add_handler(CommandHandler("restart", restart_command))
-    app.add_handler(CommandHandler("logs", logs_command))
-    app.add_handler(CommandHandler("runonce", runonce_command))
     app.add_handler(CommandHandler("cleanup", cleanup_command))
+
     print("✅ Watchtower 控制 Bot 已启动")
+    print("🔄 开始轮询...")
     app.run_polling()
 
 if __name__ == "__main__":
