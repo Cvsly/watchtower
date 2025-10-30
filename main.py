@@ -208,8 +208,8 @@ async def cleanup_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"💾 释放空间：{round(space_reclaimed / (1024**2), 2)} MB"
             )
 
+        # 只保留一条回复消息，删除重复的 send_telegram_message 调用
         await update.message.reply_text(msg, parse_mode="Markdown")
-        send_telegram_message(msg, use_markdown=True)
 
     except Exception as e:
         await update.message.reply_text(f"❌ 镜像清理失败：{e}")
