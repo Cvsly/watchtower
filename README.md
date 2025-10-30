@@ -13,18 +13,18 @@ Watchtower的特点与优势（此版本为中文通知）
 
 Tips - 注意事项
 
-    1  env环境变量文件修改：telegram://<你的BotToken>@telegram/?chats=<你的ChatID>
+    1  env环境变量修改部分：BOT_TOKEN=xxxxxxx,ALLOWED_CHAT_ID=xxxxxxx
 
-    2  docker-compose.yml文件中的token和id处替换成自己的
+    2  只需修改.env中的TOKEN和ID即可部署成功
    
     3  bot命令控制，举个栗子：/help
    
-    4  四个文件与docker-compose.yml放在同一主目录
+    4  四个文件与docker-compose.yml放在同一主目录下
 
     5  目前仅在telegram运行通知提醒，其它暂未测试，有问题请使用原版
 
     6  部署完后重建并测试
-       cd /opt/1panel/apps/watchtower/watchtower（进入容器所在目录）
+       cd /xxxx/watchtower/watchtower（进入容器所在目录）
        docker compose down
        docker compose up -d --build
        或者 docker exec watchtower /watchtower --run-once 测试发送通知
