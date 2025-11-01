@@ -11,7 +11,7 @@ Watchtower的特点与优势（此版本为中文通知）
 
 五.   通知与日志：Watchtower可以配置通知机制，让您及时了解容器更新的情况。同时，它还提供详细的日志记录，方便您查看更新过程的细节和可能出现的问题
 
-Tips - 注意事项
+Tips - 事项
 
     1  env环境变量修改部分：BOT_TOKEN=xxxxxxx,ALLOWED_CHAT_ID=xxxxxxx
 
@@ -21,9 +21,11 @@ Tips - 注意事项
    
     4  四个文件与docker-compose.yml放在同一主目录下
 
-    5  目前仅在telegram运行通知提醒，其它暂未测试，有问题请使用原版
+    5  仅在telegram运行通知提醒，其它暂未测试，有问题请使用原版
 
-    6  部署完后重建并测试
+    6  目前功能支持：容器定时更新检测，重启/暂停，镜像清理，日志查询
+
+    7  部署完后重建并测试
        cd /xxxx/watchtower/watchtower（进入容器所在目录）
        docker compose down
        docker compose up -d --build
