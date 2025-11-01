@@ -1,2 +1,4 @@
-python-telegram-bot==20.8
+python-telegram-bot[job-queue]==20.8
 docker==7.1.0
+pytz==2024.1
+requests==2.31.0
