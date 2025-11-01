@@ -58,7 +58,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     command:
       - --schedule
-      - "0 23 21 * * *"
+      - "0 0 1 * * *"
       - --cleanup
       - --warn-on-head-failure=never
       - --include-restarting
