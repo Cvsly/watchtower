@@ -15,7 +15,7 @@ Tips - 注意事项
 
     1  env环境变量修改部分：BOT_TOKEN=xxxxxxx,ALLOWED_CHAT_ID=xxxxxxx
 
-    2  只需修改.env中的TOKEN和ID即可部署成功
+    2  只需修改.env中的TOKEN和ID部分
    
     3  bot命令控制，举个栗子：/help
    
