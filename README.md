@@ -19,7 +19,7 @@ Tips - 事项
    
     3  bot命令控制，举个栗子：/help
    
-    4  四个文件与docker-compose.yml放在同一主目录下
+    4  其余文件与docker-compose.yml放在同一主目录下
 
     5  仅在telegram运行通知提醒，其它暂未测试，有问题请使用原版
 
