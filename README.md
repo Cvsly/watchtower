@@ -16,16 +16,18 @@ Tips - 事项
     1  env环境变量修改部分：BOT_TOKEN=xxxxxxx,ALLOWED_CHAT_ID=xxxxxxx
 
     2  只需修改.env中的TOKEN和ID部分
+
+    3  WATCHTOWER_EXCLUDE_CONTAINERS: "container1,container2,container3" 禁止容器自动更新默认不开启，需要开启请自行添加
    
-    3  bot命令控制，举个栗子：/help
+    4  bot命令控制，举个栗子：/help
    
-    4  其余文件与docker-compose.yml放在同一主目录下
+    5  全部文件放在同一主目录下
 
-    5  仅在telegram运行通知提醒，其它暂未测试，有问题请使用原版
+    6  仅在telegram运行通知提醒，其它暂未测试，有问题请使用原版
 
-    6  目前功能支持：容器定时更新检测，屏蔽特定容器自动更新，重启/暂停，资源清理，日志查询
+    7  目前功能支持：容器定时更新检测，屏蔽特定容器自动更新，重启/暂停，资源清理，日志查询
 
-    7  部署完后重建并测试
+    8  部署完后重建并测试
        cd /xxxx/watchtower/watchtower（进入容器所在目录）
        docker compose down
        docker compose up -d --build
