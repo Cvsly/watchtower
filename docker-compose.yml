@@ -59,12 +59,14 @@ services:
       - ./watchtower-data:/watchtower-data  # 新增数据卷用于存储黑名单
     command:
       - --schedule
-      - "6 21 * * *"  # 每天晚上9点21分6秒执行
+      - "0 0 1 * * *"  # 每天晚上9点21分6秒执行
       - --cleanup
       - --warn-on-head-failure=never
       - --include-restarting
       - --notification-report
       - --label-enable
+    labels:
+      - "com.centurylinklabs.watchtower.enable=false"  # 忽略自身更新
     restart: unless-stopped
 
   watchtower-bot:
