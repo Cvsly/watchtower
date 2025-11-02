@@ -56,13 +56,15 @@ services:
         {{- end -}}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./watchtower-data:/watchtower-data  # 新增数据卷用于存储黑名单
     command:
       - --schedule
-      - "0 0 1 * * *"
+      - "6 21 * * *"  # 每天晚上9点21分6秒执行
       - --cleanup
       - --warn-on-head-failure=never
       - --include-restarting
       - --notification-report
+      - --label-enable
     restart: unless-stopped
 
   watchtower-bot:
@@ -74,7 +76,7 @@ services:
       - DOCKER_SOCKET_PATH=/var/run/docker.sock
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./watchtower-logs:/var/log/watchtower
+      - ./watchtower-data:/watchtower-data  # 共享黑名单数据卷
     depends_on:
       - watchtower
     restart: unless-stopped
