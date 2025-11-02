@@ -12,6 +12,8 @@ COPY requirements.txt .
 # 安装 Python 依赖
 RUN pip install --no-cache-dir -r requirements.txt
 
+# 复制所有必要的文件
 COPY main.py .
+COPY blacklist_manager.py .
 
 CMD ["python", "main.py"]
