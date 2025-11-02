@@ -6,9 +6,6 @@ import docker
 from datetime import datetime
 import asyncio
 
-# 导入黑名单管理器
-from blacklist_manager import blacklist_manager
-
 # 配置日志
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -83,12 +80,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📦 `/containers` - 容器管理菜单
 🖼️ `/images` - 查看镜像列表
 
-🛡️ **黑名单命令：**
-🚫 `/blacklist_add <容器名>` - 添加容器到黑名单（屏蔽自动更新）
-✅ `/blacklist_remove <容器名>` - 从黑名单移除容器（允许自动更新）
-📋 `/blacklist_show` - 显示黑名单列表
-🗑️ `/blacklist_clear` - 清空黑名单
-
 ❓ **帮助命令：**
 ℹ️ `/help` - 显示此帮助信息
 🚀 `/quickhelp` - 快速命令速查
@@ -104,8 +95,6 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 📊 清理前建议先用 `/cleanup` 扫描查看未使用资源
 ⏱️ 定时任务设置按需求执行更新检查
 🛠️ 使用 `/runonce` 可立即检查容器更新
-🛡️ 使用黑名单功能可以屏蔽特定容器的自动更新
-🏷️ 黑名单通过设置 Docker 标签实现
     """
     await update.message.reply_text(help_text)
 
@@ -128,10 +117,6 @@ async def quick_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🗑️ `/cleanupimages` - 清理镜像
 🚮 `/cleanupcontainers` - 清理容器
 
-🛡️ **黑名单管理：**
-🚫 `/blacklist_add <容器>` - 屏蔽更新
-📋 `/blacklist_show` - 查看屏蔽列表
-
 输入 ℹ️ `/help` 查看完整命令手册
     """
     await update.message.reply_text(quick_help_text)
@@ -148,9 +133,7 @@ async def status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         message = "🟢 **运行中容器状态：**\n\n"
         for container in containers:
             status = "🟢 运行中" if container.status == "running" else "🟡 其他状态"
-            is_blacklisted = blacklist_manager.is_blacklisted(container.name)
-            blacklist_icon = "🚫" if is_blacklisted else "✅"
-            message += f"📦 **{container.name}** {blacklist_icon}\n"
+            message += f"📦 **{container.name}**\n"
             message += f"   📊 状态：{status}\n"
             message += f"   🖼️ 镜像：{container.image.tags[0] if container.image.tags else 'N/A'}\n"
             message += f"   🕐 创建时间：{container.attrs['Created'][:19]}\n\n"
@@ -178,11 +161,9 @@ async def all_containers(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         for container in containers:
             status_icon = "🟢" if container.status == "running" else "🔴"
-            is_blacklisted = blacklist_manager.is_blacklisted(container.name)
-            blacklist_icon = "🚫" if is_blacklisted else "✅"
-            message += f"{status_icon} {blacklist_icon} **{container.name}**\n"
-            message += f"   状态：{container.status}\n"
-            message += f"   镜像：{container.image.tags[0] if container.image.tags else 'N/A'}\n\n"
+            message += f"{status_icon} **{container.name}**\n"
+            message += f"   📊 状态：{container.status}\n"
+            message += f"   🖼️ 镜像：{container.image.tags[0] if container.image.tags else 'N/A'}\n\n"
         
         await update.message.reply_text(message)
     except Exception as e:
@@ -483,112 +464,6 @@ async def cleanup_force(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ 执行强制清理时出错")
 
 @auth_required
-async def blacklist_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """添加容器到黑名单"""
-    if not context.args:
-        await update.message.reply_text("❌ 请指定要添加到黑名单的容器名\n用法: 🚫 `/blacklist_add <容器名>`")
-        return
-    
-    container_name = context.args[0]
-    
-    try:
-        # 检查容器是否存在
-        docker_client.containers.get(container_name)
-        
-        if blacklist_manager.add_to_blacklist(container_name):
-            await update.message.reply_text(
-                f"✅ 已添加容器 **{container_name}** 到黑名单\n\n"
-                f"🚫 该容器将不会被自动更新\n"
-                f"🏷️ 已设置标签: `com.centurylinklabs.watchtower.enable=false`"
-            )
-        else:
-            await update.message.reply_text(f"⚠️ 容器 **{container_name}** 已在黑名单中")
-            
-    except docker.errors.NotFound:
-        await update.message.reply_text(f"❌ 未找到容器: **{container_name}**")
-    except Exception as e:
-        logger.error(f"添加黑名单错误: {e}")
-        await update.message.reply_text(f"❌ 添加黑名单时出错: {str(e)}")
-
-@auth_required
-async def blacklist_remove(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """从黑名单中移除容器"""
-    if not context.args:
-        await update.message.reply_text("❌ 请指定要从黑名单移除的容器名\n用法: ✅ `/blacklist_remove <容器名>`")
-        return
-    
-    container_name = context.args[0]
-    
-    try:
-        # 检查容器是否存在
-        docker_client.containers.get(container_name)
-        
-        if blacklist_manager.remove_from_blacklist(container_name):
-            await update.message.reply_text(
-                f"✅ 已从黑名单移除容器 **{container_name}**\n\n"
-                f"🔄 该容器现在可以被自动更新\n"
-                f"🏷️ 已移除忽略标签"
-            )
-        else:
-            await update.message.reply_text(f"⚠️ 容器 **{container_name}** 不在黑名单中")
-            
-    except docker.errors.NotFound:
-        await update.message.reply_text(f"❌ 未找到容器: **{container_name}**")
-    except Exception as e:
-        logger.error(f"移除黑名单错误: {e}")
-        await update.message.reply_text(f"❌ 移除黑名单时出错: {str(e)}")
-
-@auth_required
-async def blacklist_show(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """显示黑名单列表"""
-    blacklist = blacklist_manager.get_blacklist()
-    
-    if not blacklist:
-        await update.message.reply_text("📋 **黑名单列表**\n\n🚫 当前黑名单为空")
-        return
-    
-    message = "📋 **黑名单列表**\n\n"
-    for i, container_name in enumerate(blacklist, 1):
-        try:
-            container = docker_client.containers.get(container_name)
-            status_icon = "🟢" if container.status == "running" else "🔴"
-            # 检查是否实际设置了忽略标签
-            labels = container.labels or {}
-            has_label = 'com.centurylinklabs.watchtower.enable' in labels and labels['com.centurylinklabs.watchtower.enable'] == 'false'
-            label_status = "✅" if has_label else "⚠️"
-            message += f"{i}. {status_icon} {label_status} **{container_name}**\n"
-        except docker.errors.NotFound:
-            message += f"{i}. ❓ **{container_name}** (容器不存在)\n"
-    
-    message += f"\n📊 总计: **{len(blacklist)}** 个容器\n\n"
-    message += "🟢 = 运行中, 🔴 = 已停止\n"
-    message += "✅ = 标签已设置, ⚠️ = 标签未设置"
-    await update.message.reply_text(message)
-
-@auth_required
-async def blacklist_clear(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """清空黑名单"""
-    blacklist_count = len(blacklist_manager.get_blacklist())
-    
-    if blacklist_count == 0:
-        await update.message.reply_text("📋 黑名单已经是空的")
-        return
-    
-    keyboard = [
-        [InlineKeyboardButton("✅ 确认清空", callback_data="blacklist_clear_confirm")],
-        [InlineKeyboardButton("❌ 取消", callback_data="blacklist_clear_cancel")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    
-    await update.message.reply_text(
-        f"⚠️ **确认清空黑名单？**\n\n"
-        f"🗑️ 这将移除黑名单中的所有 **{blacklist_count}** 个容器\n"
-        f"🔄 这些容器将重新接受自动更新\n"
-        f"🏷️ 同时会移除所有忽略标签",
-        reply_markup=reply_markup
-    )
-
-@auth_required
 async def containers_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """容器管理菜单"""
     try:
@@ -597,22 +472,11 @@ async def containers_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard = []
         for container in containers:
             status_icon = "🟢" if container.status == "running" else "🔴"
-            is_blacklisted = blacklist_manager.is_blacklisted(container.name)
-            blacklist_icon = "🚫" if is_blacklisted else "✅"
-            button_text = f"{status_icon} {blacklist_icon} {container.name}"
+            button_text = f"{status_icon} {container.name}"
             keyboard.append([InlineKeyboardButton(button_text, callback_data=f"container_{container.name}")])
         
-        # 添加黑名单管理按钮
-        keyboard.append([InlineKeyboardButton("📋 查看黑名单", callback_data="show_blacklist")])
-        keyboard.append([InlineKeyboardButton("🗑️ 清空黑名单", callback_data="clear_blacklist_menu")])
-        
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await update.message.reply_text(
-            "📦 **容器管理** - 选择容器进行操作:\n\n"
-            "🚫 = 在黑名单中 (不自动更新)\n"
-            "✅ = 可自动更新",
-            reply_markup=reply_markup
-        )
+        await update.message.reply_text("📦 **容器管理** - 选择容器进行操作:", reply_markup=reply_markup)
     except Exception as e:
         logger.error(f"容器菜单错误: {e}")
         await update.message.reply_text("❌ 加载容器菜单时出错")
@@ -727,9 +591,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             container_name = data.replace("container_", "")
             container = docker_client.containers.get(container_name)
             
-            is_blacklisted = blacklist_manager.is_blacklisted(container_name)
-            blacklist_button = InlineKeyboardButton("🚫 加入黑名单", callback_data=f"blacklist_{container_name}") if not is_blacklisted else InlineKeyboardButton("✅ 移出黑名单", callback_data=f"unblacklist_{container_name}")
-            
             keyboard = [
                 [
                     InlineKeyboardButton("🔄 重启", callback_data=f"restart_{container_name}"),
@@ -739,14 +600,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     InlineKeyboardButton("▶️ 启动", callback_data=f"start_{container_name}"),
                     InlineKeyboardButton("📋 日志", callback_data=f"logs_{container_name}")
                 ],
-                [blacklist_button],
                 [InlineKeyboardButton("🔙 返回", callback_data="back_containers")]
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
             
             status_icon = "🟢" if container.status == "running" else "🔴"
-            blacklist_status = "🚫 在黑名单中" if is_blacklisted else "✅ 可自动更新"
-            info = f"{status_icon} **容器:** {container_name}\n📊 **状态:** {container.status}\n🖼️ **镜像:** {container.image.tags[0] if container.image.tags else 'N/A'}\n🛡️ **更新状态:** {blacklist_status}"
+            info = f"{status_icon} **容器:** {container_name}\n📊 **状态:** {container.status}\n🖼️ **镜像:** {container.image.tags[0] if container.image.tags else 'N/A'}"
             
             await query.edit_message_text(info, reply_markup=reply_markup)
             
@@ -782,44 +641,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif data == "back_containers":
             await containers_menu(update, context)
             
-        # 黑名单相关按钮
-        elif data == "blacklist_clear_confirm":
-            if blacklist_manager.clear_blacklist():
-                await query.edit_message_text("✅ **黑名单已清空**\n\n🔄 所有容器现在都可以被自动更新\n🏷️ 已移除所有忽略标签")
-            else:
-                await query.edit_message_text("❌ 清空黑名单失败")
-                
-        elif data == "blacklist_clear_cancel":
-            await query.edit_message_text("❌ 清空黑名单操作已取消")
-            
-        elif data.startswith("blacklist_"):
-            container_name = data.replace("blacklist_", "")
-            if blacklist_manager.add_to_blacklist(container_name):
-                await query.edit_message_text(
-                    f"✅ 已添加容器 **{container_name}** 到黑名单\n\n"
-                    f"🚫 该容器将不会被自动更新\n"
-                    f"🏷️ 已设置忽略标签"
-                )
-            else:
-                await query.edit_message_text(f"⚠️ 容器 **{container_name}** 已在黑名单中")
-                
-        elif data.startswith("unblacklist_"):
-            container_name = data.replace("unblacklist_", "")
-            if blacklist_manager.remove_from_blacklist(container_name):
-                await query.edit_message_text(
-                    f"✅ 已从黑名单移除容器 **{container_name}**\n\n"
-                    f"🔄 该容器现在可以被自动更新\n"
-                    f"🏷️ 已移除忽略标签"
-                )
-            else:
-                await query.edit_message_text(f"⚠️ 容器 **{container_name}** 不在黑名单中")
-                
-        elif data == "show_blacklist":
-            await blacklist_show(update, context)
-            
-        elif data == "clear_blacklist_menu":
-            await blacklist_clear(update, context)
-                
     except Exception as e:
         logger.error(f"按钮处理错误: {e}")
         await query.edit_message_text("❌ 操作执行时出错")
@@ -850,12 +671,6 @@ def main():
     application.add_handler(CommandHandler("cleanupforce", cleanup_force))
     application.add_handler(CommandHandler("containers", containers_menu))
     application.add_handler(CommandHandler("images", images_list))
-    
-    # 新增黑名单命令
-    application.add_handler(CommandHandler("blacklist_add", blacklist_add))
-    application.add_handler(CommandHandler("blacklist_remove", blacklist_remove))
-    application.add_handler(CommandHandler("blacklist_show", blacklist_show))
-    application.add_handler(CommandHandler("blacklist_clear", blacklist_clear))
     
     # 添加按钮回调处理器
     application.add_handler(CallbackQueryHandler(button_handler))
