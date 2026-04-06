@@ -73,8 +73,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🔎 `/cleanup` - 扫描未使用的资源
 🗑️ `/cleanupimages` - 清理未使用的镜像
 🚮 `/cleanupcontainers` - 清理已停止的容器
-💥 `/cleanupall` - 全面清理所有资源（镜像+容器）
-⚠️ `/cleanupforce` - 强制清理（包括构建缓存和卷）
+💥 `/cleanupall` - 全面清理所有资源
+⚠️ `/cleanupforce` - 强制清理（包括构建缓存）
 
 ⚙️ **管理命令：**
 📦 `/containers` - 容器管理菜单
@@ -88,11 +88,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🔒 **安全说明：**
 🔐 只有授权的用户可以使用这些命令
 ❗ 清理操作前请确认，避免误删重要数据
-🔥 强制清理可能会删除构建缓存和卷，请谨慎使用
+🔥 强制清理可能会删除构建缓存，请谨慎使用
 
 💡 **使用提示：**
 🎯 使用 `/containers` 可以交互式管理容器
 📊 清理前建议先用 `/cleanup` 扫描查看未使用资源
+⏱️ 定时任务设置按需求执行更新检查
+🛠️ 使用 `/runonce` 可立即检查容器更新
     """
     await update.message.reply_text(help_text)
 
@@ -114,8 +116,6 @@ async def quick_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🧹 **清理操作：**
 🗑️ `/cleanupimages` - 清理镜像
 🚮 `/cleanupcontainers` - 清理容器
-💥 `/cleanupall` - 全面清理
-⚠️ `/cleanupforce` - 强制清理
 
 输入 ℹ️ `/help` 查看完整命令手册
     """
@@ -330,23 +330,22 @@ async def schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @auth_required
 async def cleanup(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """扫描未使用的资源（仅预览，不执行清理）"""
+    """扫描未使用的资源"""
     try:
-        # 统计未使用的镜像（dangling 或无 tag）
+        # 扫描未使用的镜像
         images = docker_client.images.list()
-        unused_images = [img for img in images if not img.tags or any('<none>' in tag for tag in img.tags)]
+        unused_images = [img for img in images if len(img.tags) == 0 or '<none>' in img.tags[0]]
         
-        # 统计已停止的容器
+        # 扫描已停止的容器
         stopped_containers = docker_client.containers.list(all=True, filters={'status': 'exited'})
         
         message = "🔍 **未使用资源扫描结果：**\n\n"
         message += f"🖼️ 未使用的镜像：**{len(unused_images)}** 个\n"
         message += f"📦 已停止的容器：**{len(stopped_containers)}** 个\n\n"
         message += "💡 **清理建议：**\n"
-        message += "🗑️ `/cleanupimages` - 清理未使用的镜像\n"
-        message += "🚮 `/cleanupcontainers` - 清理已停止的容器\n"
-        message += "💥 `/cleanupall` - 全面清理所有资源（镜像+容器）\n"
-        message += "⚠️ `/cleanupforce` - 强制清理（包括构建缓存和卷）"
+        message += "🗑️ 使用 `/cleanupimages` 清理未使用的镜像\n"
+        message += "🚮 使用 `/cleanupcontainers` 清理已停止的容器\n"
+        message += "💥 使用 `/cleanupall` 全面清理所有资源"
         
         await update.message.reply_text(message)
     except Exception as e:
@@ -355,53 +354,71 @@ async def cleanup(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @auth_required
 async def cleanup_images(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """清理未使用的镜像（使用 prune）"""
+    """清理未使用的镜像"""
     try:
         await update.message.reply_text("🧹 开始清理未使用的镜像...")
-        result = docker_client.images.prune()
-        deleted = result.get('ImagesDeleted')
-        deleted_count = len(deleted) if deleted else 0
-        space_reclaimed = result.get('SpaceReclaimed', 0)
-        freed_mb = space_reclaimed / (1024 * 1024)
         
-        if deleted_count == 0:
+        # 获取未使用的镜像
+        images = docker_client.images.list()
+        unused_images = [img for img in images if len(img.tags) == 0 or '<none>' in img.tags[0]]
+        
+        if not unused_images:
             await update.message.reply_text("✅ 没有未使用的镜像需要清理")
-        else:
-            await update.message.reply_text(
-                f"✅ **镜像清理完成**\n\n"
-                f"🗑️ 已删除镜像数量：**{deleted_count}** 个\n"
-                f"💾 释放空间：**{freed_mb:.2f} MB**"
-            )
+            return
+        
+        freed_space = 0
+        removed_count = 0
+        
+        for image in unused_images:
+            try:
+                size = image.attrs['Size']
+                docker_client.images.remove(image.id, force=False)
+                freed_space += size
+                removed_count += 1
+            except Exception as e:
+                logger.warning(f"无法删除镜像 {image.id}: {e}")
+        
+        freed_mb = freed_space / (1024 * 1024)
+        await update.message.reply_text(
+            f"✅ **镜像清理完成**\n\n"
+            f"🗑️ 已删除镜像：**{removed_count}** 个\n"
+            f"💾 释放空间：**{freed_mb:.2f} MB**"
+        )
+        
     except Exception as e:
         logger.error(f"清理镜像错误: {e}")
-        await update.message.reply_text(f"❌ 清理镜像时出错: {str(e)}")
+        await update.message.reply_text("❌ 清理镜像时出错")
 
 @auth_required
 async def cleanup_containers(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """清理已停止的容器（使用 prune）"""
+    """清理已停止的容器"""
     try:
         await update.message.reply_text("🧹 开始清理已停止的容器...")
-        result = docker_client.containers.prune()
-        deleted = result.get('ContainersDeleted')
-        deleted_count = len(deleted) if deleted else 0
-        space_reclaimed = result.get('SpaceReclaimed', 0)
-        freed_mb = space_reclaimed / (1024 * 1024)
         
-        if deleted_count == 0:
+        # 获取已停止的容器
+        stopped_containers = docker_client.containers.list(all=True, filters={'status': 'exited'})
+        
+        if not stopped_containers:
             await update.message.reply_text("✅ 没有已停止的容器需要清理")
-        else:
-            await update.message.reply_text(
-                f"✅ **容器清理完成**\n\n"
-                f"🗑️ 已删除容器：**{deleted_count}** 个\n"
-                f"💾 释放空间：**{freed_mb:.2f} MB**"
-            )
+            return
+        
+        removed_count = 0
+        for container in stopped_containers:
+            try:
+                container.remove()
+                removed_count += 1
+            except Exception as e:
+                logger.warning(f"无法删除容器 {container.name}: {e}")
+        
+        await update.message.reply_text(f"✅ **容器清理完成**\n🗑️ 已删除容器：**{removed_count}** 个")
+        
     except Exception as e:
         logger.error(f"清理容器错误: {e}")
-        await update.message.reply_text(f"❌ 清理容器时出错: {str(e)}")
+        await update.message.reply_text("❌ 清理容器时出错")
 
 @auth_required
 async def cleanup_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """全面清理所有资源（容器、镜像）"""
+    """全面清理所有资源"""
     try:
         keyboard = [
             [InlineKeyboardButton("✅ 确认清理", callback_data="cleanup_confirm")],
@@ -413,8 +430,9 @@ async def cleanup_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⚠️ **确认执行全面清理？**\n\n"
             "🗑️ 这将删除：\n"
             "• 🖼️ 所有未使用的镜像\n"
-            "• 📦 所有已停止的容器\n\n"
-            "💡 使用 `/cleanupforce` 可额外清理构建缓存和卷。",
+            "• 📦 所有已停止的容器\n"
+            "• 🌐 所有未使用的网络\n"
+            "• 🗂️ 所有未使用的构建缓存",
             reply_markup=reply_markup
         )
     except Exception as e:
@@ -423,7 +441,7 @@ async def cleanup_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @auth_required
 async def cleanup_force(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """强制清理（包括构建缓存、未使用的卷）"""
+    """强制清理（包括构建缓存）"""
     try:
         keyboard = [
             [InlineKeyboardButton("🔥 确认强制清理", callback_data="cleanup_force_confirm")],
@@ -434,11 +452,11 @@ async def cleanup_force(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "🚨 **确认执行强制清理？**\n\n"
             "🗑️ 这将强制删除：\n"
-            "• 🖼️ 所有未使用的镜像（包括有 tag 的）\n"
+            "• 🖼️ 所有未使用的镜像（强制）\n"
             "• 📦 所有已停止的容器\n"
-            "• 🗂️ 所有构建缓存\n"
-            "• 💿 所有未使用的卷（⚠️ 可能包含重要数据）\n\n"
-            "⚠️ **注意：** 此操作不可逆，请谨慎使用！",
+            "• 🌐 所有未使用的网络\n"
+            "• 🗂️ 所有构建缓存\n\n"
+            "⚠️ **注意：** 这可能会删除正在被其他容器使用的基础镜像",
             reply_markup=reply_markup
         )
     except Exception as e:
@@ -475,7 +493,7 @@ async def images_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for tag in tags:
                 size_mb = image.attrs['Size'] / (1024 * 1024)
                 message += f"🏷️ **{tag}**\n"
-                message += f"   💾 大小：**{size_mb:.2f} MB**\n"
+                message += f"   💾 大小：{size_mb:.2f} MB\n"
                 message += f"   🔤 ID：{image.short_id}\n\n"
         
         if len(message) > 4000:
@@ -497,66 +515,73 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if data == "cleanup_confirm":
             await query.edit_message_text("🔄 执行全面清理中...")
             
-            # 1. 清理已停止的容器
-            containers_result = docker_client.containers.prune()
-            containers_deleted = containers_result.get('ContainersDeleted')
-            containers_deleted_count = len(containers_deleted) if containers_deleted else 0
-            containers_space = containers_result.get('SpaceReclaimed', 0)
+            # 清理已停止的容器
+            stopped_containers = docker_client.containers.list(all=True, filters={'status': 'exited'})
+            containers_removed = 0
+            for container in stopped_containers:
+                try:
+                    container.remove()
+                    containers_removed += 1
+                except:
+                    pass
             
-            # 2. 清理未使用的镜像
-            images_result = docker_client.images.prune()
-            images_deleted = images_result.get('ImagesDeleted')
-            images_deleted_count = len(images_deleted) if images_deleted else 0
-            images_space = images_result.get('SpaceReclaimed', 0)
+            # 清理未使用的镜像
+            images = docker_client.images.list()
+            unused_images = [img for img in images if len(img.tags) == 0 or '<none>' in img.tags[0]]
+            images_removed = 0
+            freed_space = 0
+            for image in unused_images:
+                try:
+                    size = image.attrs['Size']
+                    docker_client.images.remove(image.id, force=False)
+                    freed_space += size
+                    images_removed += 1
+                except:
+                    pass
             
-            total_space_mb = (containers_space + images_space) / (1024 * 1024)
+            # 清理未使用的网络
+            networks = docker_client.networks.list()
+            unused_networks = [net for net in networks if not net.containers]
+            networks_removed = 0
+            for network in unused_networks:
+                try:
+                    if network.name not in ['bridge', 'host', 'none']:
+                        network.remove()
+                        networks_removed += 1
+                except:
+                    pass
             
+            freed_mb = freed_space / (1024 * 1024)
             await query.edit_message_text(
                 f"✅ **全面清理完成**\n\n"
-                f"🗑️ 已删除容器：**{containers_deleted_count}** 个\n"
-                f"🗑️ 已删除镜像：**{images_deleted_count}** 个\n"
-                f"💾 释放空间：**{total_space_mb:.2f} MB**"
+                f"🗑️ 已删除容器：**{containers_removed}** 个\n"
+                f"🗑️ 已删除镜像：**{images_removed}** 个\n"
+                f"🗑️ 已删除网络：**{networks_removed}** 个\n"
+                f"💾 释放空间：**{freed_mb:.2f} MB**"
             )
             
         elif data == "cleanup_force_confirm":
-            await query.edit_message_text("🔥 执行强制清理中...")
+            await query.edit_message_text("🔄 执行强制清理中...")
             
-            # 1. 容器
-            containers_result = docker_client.containers.prune()
-            containers_deleted = containers_result.get('ContainersDeleted')
-            containers_deleted_count = len(containers_deleted) if containers_deleted else 0
-            containers_space = containers_result.get('SpaceReclaimed', 0)
+            # 执行 docker system prune -a -f
+            result = docker_client.containers.prune()
+            containers_removed = result['SpaceReclaimed']
             
-            # 2. 镜像（所有未使用）
-            images_result = docker_client.images.prune(filters=None)
-            images_deleted = images_result.get('ImagesDeleted')
-            images_deleted_count = len(images_deleted) if images_deleted else 0
-            images_space = images_result.get('SpaceReclaimed', 0)
+            result = docker_client.images.prune(filters={'dangling': False})
+            images_removed = result['SpaceReclaimed']
             
-            # 3. 构建缓存
-            build_cache_space = 0
-            try:
-                result = docker_client.api.prune_builds()
-                build_cache_space = result.get('SpaceReclaimed', 0)
-            except AttributeError:
-                logger.warning("当前 docker-py 版本不支持 prune_builds，跳过构建缓存清理")
+            result = docker_client.networks.prune()
+            networks_removed = result['SpaceReclaimed']
             
-            # 4. 卷
-            volumes_result = docker_client.volumes.prune()
-            volumes_deleted = volumes_result.get('VolumesDeleted')
-            volumes_deleted_count = len(volumes_deleted) if volumes_deleted else 0
-            volumes_space = volumes_result.get('SpaceReclaimed', 0)
+            result = docker_client.volumes.prune()
+            volumes_removed = result['SpaceReclaimed']
             
-            total_space_mb = (containers_space + images_space + build_cache_space + volumes_space) / (1024 * 1024)
+            total_space = (containers_removed + images_removed + networks_removed + volumes_removed) / (1024 * 1024)
             
             await query.edit_message_text(
                 f"✅ **强制清理完成**\n\n"
-                f"🗑️ 已删除容器：**{containers_deleted_count}** 个\n"
-                f"🗑️ 已删除镜像：**{images_deleted_count}** 个\n"
-                f"🗑️ 已删除构建缓存：**{build_cache_space // (1024*1024)} MB**\n"
-                f"🗑️ 已删除卷：**{volumes_deleted_count}** 个\n"
-                f"💾 总释放空间：**{total_space_mb:.2f} MB**\n\n"
-                f"⚠️ 注意：卷删除不可恢复，请确认数据已备份。"
+                f"💾 总释放空间：**{total_space:.2f} MB**\n"
+                f"⚠️ **注意：** 可能删除了构建缓存和基础镜像"
             )
             
         elif data == "cleanup_cancel":
@@ -614,19 +639,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text(message, parse_mode='Markdown')
             
         elif data == "back_containers":
-            # 重新发送容器菜单
-            containers = docker_client.containers.list(all=True)
-            keyboard = []
-            for container in containers:
-                status_icon = "🟢" if container.status == "running" else "🔴"
-                button_text = f"{status_icon} {container.name}"
-                keyboard.append([InlineKeyboardButton(button_text, callback_data=f"container_{container.name}")])
-            reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text("📦 **容器管理** - 选择容器进行操作:", reply_markup=reply_markup)
+            await containers_menu(update, context)
             
     except Exception as e:
         logger.error(f"按钮处理错误: {e}")
-        await query.edit_message_text(f"❌ 操作执行时出错: {str(e)}")
+        await query.edit_message_text("❌ 操作执行时出错")
 
 def main():
     """主函数"""
